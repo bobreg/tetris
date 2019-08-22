@@ -15,6 +15,7 @@ x_last = [0, 0, 0, 0]  # поле перекрашивается обратно 
 speed = 1
 const_fall_time = (11 - speed) * 50
 last_count_change_speed = 0
+temp_param = 0
 figure = {'figure_kv': [[[0, 0], [1, 0], [0, 1], [1, 1]], 1],  # типы фигур, координаты точек, сколько есть вариантов
 
           'figure_I': [[[0, 0], [1, 0], [2, 0], [3, 0]],
@@ -45,14 +46,13 @@ figure = {'figure_kv': [[[0, 0], [1, 0], [0, 1], [1, 1]], 1],  # типы фиг
 
 def shift_right(event):  # функция сдвига фигуры вправо
     global x_shift
-    flag = True
     if x_shift + figure[current_figure][who_figure][-1][-1] < 9:  # если сдвиг по х + самая правая часть фигуры не
         x_shift += 1  # выходят за границу поля, то увеличим сдвиг вправо на 1
     else:
         x_shift = 9 - figure[current_figure][who_figure][-1][-1]  # если нет, то выставим сдвиг такой чтобы самая
         # правая часть фигуры была на краю поля
         # figure[current_figure][who_figure][-1][-1] - есть самая правая координата фигуры
-        otrisovka(y_step, x_shift, current_figure, who_figure, 0, True)
+    otrisovka(y_step, x_shift, current_figure, who_figure, 0, True)
 
 
 def shift_left(event): # функция сдвига фигуры влево
@@ -65,8 +65,10 @@ def shift_left(event): # функция сдвига фигуры влево
 
 
 def move_fall_fast(event):
-    global const_fall_time
-    const_fall_time = 20
+    global const_fall_time, flag_after_cancel
+    pole_game.after_cancel(flag_after_cancel)  # надо отменить предыдущий перезапуск, ибо если это не сделать то фигурка
+    const_fall_time = 20  # ускориться только через следующий ход. Как бы будет задержка ускорения падения
+    flag_after_cancel = pole_game.after_idle(fall_figure)  # снова запустим падение, но уже ускорено
 
 
 def move_fall_low(event):
@@ -122,6 +124,7 @@ def del_line():
 
 def fall_figure():  # основная функция. функция падения фигур. запускается каждые speed*50 мс
     global next_figure, x_shift, y_step, flag_fall, current_figure, who_figure, const_fall_time, flag_after_cancel
+    global temp_param
     flag_after_cancel = pole_game.after(const_fall_time, fall_figure)  # повторный запуск функции
     for i in figure[current_figure][who_figure]:
         if i[0] + y_step + 1 > 29 or globals()['label{}*{}'.format(i[0] + y_step + 1, i[1] + x_shift)]['bg'] == 'gray3':
@@ -129,7 +132,6 @@ def fall_figure():  # основная функция. функция паден
     if flag_fall is True:
         otrisovka(y_step, x_shift, current_figure, who_figure, 0, True)
         y_step += 1
-        # const_fall_time = (11 - speed) * 50
     else:
         otrisovka(y_step, x_shift, current_figure, who_figure, 0, False)
         del_line()
@@ -185,7 +187,6 @@ def fall_start():
 
 
 def fall_pause():
-    global flag_after_cancel
     pole_game.after_cancel(flag_after_cancel)
 
 
