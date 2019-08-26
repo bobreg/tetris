@@ -5,6 +5,7 @@ from tkinter import messagebox
 
 flag_new_figure = False  # флаг выбора новой фигуры для следующего хода
 flag_fall = True  # флаг того что фигура ещё может падать
+flag_game_stop = False  # флаг указывающий на то, что новые фигуры могут ещё падать
 y_step = 0  # шаг падения фигуры. увеличивается от 0 в момент появления до утыкания фигуры в другую и конца поля
 x_shift = 4  # сдвиг фигуры по горизонтали
 next_figure = ''  # следующая падающая фигура
@@ -124,25 +125,34 @@ def del_line():
 
 def fall_figure():  # основная функция. функция падения фигур. запускается каждые speed*50 мс
     global next_figure, x_shift, y_step, flag_fall, current_figure, who_figure, const_fall_time, flag_after_cancel
-    global temp_param
+    global temp_param, flag_game_stop, y_last, x_last
     flag_after_cancel = pole_game.after(const_fall_time, fall_figure)  # повторный запуск функции
     for i in figure[current_figure][who_figure]:
         if i[0] + y_step + 1 > 29 or globals()['label{}*{}'.format(i[0] + y_step + 1, i[1] + x_shift)]['bg'] == 'gray3':
-            flag_fall = False
-    if flag_fall is True:
+            # проверка на коснулась ли падающая фигура уже упавших фигур или низа поля
+            flag_fall = False  # если да, то флаг падения сделаем false
+    if flag_fall is True:  # если флаг падения true, то перерисуем фигурку ниже на одну клетку
         otrisovka(y_step, x_shift, current_figure, who_figure, 0, True)
         y_step += 1
-    else:
+    else:  # если флаг false, то перерисуем фигурку как упавшую
         otrisovka(y_step, x_shift, current_figure, who_figure, 0, False)
-        del_line()
-        const_fall_time = (11 - speed) * 50
-        flag_fall = True
-        y_step = 0
+        del_line()  # проверим горизонтальные линии на заполненность
+        const_fall_time = (11 - speed) * 50  # установим скорость падения. (она может изменится после начисления очков)
+        flag_fall = True  # флаг падения установим true
+        y_step = 0  # координаты падения установим на верх поля и посередине
         x_shift = 4
-        current_figure = next_figure
-        next_figure = random.choice(list(figure.keys()))
-        who_figure = 0
-        otrisovka(0, 0, next_figure, who_figure, 1, True)
+        current_figure = next_figure  # возмём новую фигуру для падения (та что отображалась в маленьком поле)
+        next_figure = random.choice(list(figure.keys()))  # запланируем случайную фигуру для следующего хода
+        who_figure = 0  # для отрисовки фигуры в маленьком поле установим подтип это фигуры 0
+        otrisovka(0, 0, next_figure, who_figure, 1, True)  # отрисуем фигуру для следующего хода в маленьком поле
+        for o in figure[current_figure][who_figure]:  # проверим, а могут ли всё ещё падать фигуры.
+            if globals()['label{}*{}'.format(o[0] + y_step, o[1] + x_shift)]['bg'] == 'gray3':
+                # если на верху поля уже есть упавшие фигуры и новую фигуру уже нельзя отрисовать, то остановим игру
+                text_count['text'] = 0
+                flag_game_stop = True
+                pole_game.after_cancel(flag_after_cancel)
+                messagebox.showinfo('Ахтунг!', message='You lose (.Y.)')
+                break
 
 
 def otrisovka(y, x, figure_type, who_figure2, pole, flag):  # функция отрисовки фигуры на полях
@@ -161,11 +171,12 @@ def otrisovka(y, x, figure_type, who_figure2, pole, flag):  # функция о�
             globals()['label{}**{}'.format(i[0] + y, i[1] + x)]['bg'] = 'black'
     else:  # рисуем фигуру на большом поле
         if flag is False:  # фигура перестала падать
-            for i in range(4):  # затираем предыдущее положение фигуры
-                if globals()['label{}*{}'.format(y_last[i], x_last[i])]['bg'] == 'black':
-                    globals()['label{}*{}'.format(y_last[i], x_last[i])]['bg'] = 'linen'
-            y_last = []  # сбрасываем координаты предыдущего положения
-            x_last = []
+            if y_last != [] and x_last != []:  # т.к. после падения предыдущей фигуры координаты были сброшены
+                for i in range(4):  # затираем предыдущее положение фигуры
+                    if globals()['label{}*{}'.format(y_last[i], x_last[i])]['bg'] == 'black':
+                        globals()['label{}*{}'.format(y_last[i], x_last[i])]['bg'] = 'linen'
+                y_last = []  # сбрасываем координаты предыдущего положения
+                x_last = []
             for i in figure[figure_type][who_figure2]:
                 globals()['label{}*{}'.format(i[0] + y, i[1] + x)]['bg'] = 'gray3'
         else:  # фигура падает
@@ -182,7 +193,12 @@ def otrisovka(y, x, figure_type, who_figure2, pole, flag):  # функция о�
 
 
 def fall_start():
-    global flag_after_cancel
+    global flag_after_cancel, flag_game_stop
+    if flag_game_stop is True:
+        for p in range(30):
+            for t in range(10):
+                globals()['label{}*{}'.format(p, t)]['bg'] = 'linen'
+        flag_game_stop = False
     flag_after_cancel = pole_game.after_idle(fall_figure)
 
 
@@ -202,6 +218,10 @@ def change_speed_minus():
     if speed > 1:
         speed -= 1
     text_speed['text'] = speed
+
+
+def game_stop():
+    pass
 
 
 # ----------------создание окна---------------------
